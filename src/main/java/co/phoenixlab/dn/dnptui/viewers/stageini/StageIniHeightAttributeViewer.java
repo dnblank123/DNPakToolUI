@@ -39,7 +39,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.NoSuchFileException;
@@ -87,36 +86,107 @@ public class StageIniHeightAttributeViewer extends ImageViewer {
 
     @Override
     protected byte[] decodeImageData(ByteBuffer byteBuffer) throws Exception {
-        GridInfo gridInfo = loadGridInfo();
+//        GridInfo gridInfo = loadGridInfo();
         //  We add 1 because heightmap uses vertex heights, not tile heights, and the number of
         //  verticies for a grid of width n is n + 1
         //  Each tile also has two samples as well
 
         final int unknownA = byteBuffer.getInt();
         int numEntries = byteBuffer.getInt();
-        int width = gridInfo.getGridWidth() * 2 + 1;
-        int height = gridInfo.getGridLength() * 2 + 1;
-        if (width * height != numEntries) {
-            throw new IllegalArgumentException("Dimensions do not agree: " + width * height + " vs " + numEntries);
-        }
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        //  Heightmap data is BIG ENDIAN unlike the rest of DN
-        //  Probably sent to a vertex shader directly
-        byteBuffer.order(ByteOrder.BIG_ENDIAN);
-
+        int sideLen = (int)Math.sqrt(numEntries);
+//        int width = gridInfo.getGridWidth() * 2 + 1;
+//        int height = gridInfo.getGridLength() * 2 + 1;
+//        if (width * height != numEntries) {
+//            throw new IllegalArgumentException("Dimensions do not agree: " + width * height + " vs " + numEntries);
+//        }
+        BufferedImage image = new BufferedImage(sideLen, sideLen, BufferedImage.TYPE_INT_ARGB);
+        
         for (int i = 0; i < numEntries; i++) {
             int v;
             v = byteBuffer.get() & 0xFF;
             int rgba = 0xFF000000;
-            rgba |= v | ((v << 8) & 0xFF00) | ((v << 16) & 0xFF0000);
-            int x = i % width;
-            int y = i / width;
+            if (v != 0) {
+                int hi = (v & 0xF0) >> 4;
+                int lo = (v & 0x0F);
+
+                if ((lo & 0x01) != 0) {
+                    // RED
+                    // Disallow entity but allow projectiles?
+                    rgba = 0xFFEE2222;
+                }
+                if ((lo & 0x02) != 0) {
+                    // BLUE
+                    // Disallow all?
+                    rgba = 0xFF2222EE;
+                }
+                if ((lo & 0x04) != 0) {
+                    // GREEN
+                    rgba = 0xFF22EE22;
+                }
+                if ((lo & 0x08) != 0) {
+                    // YELLOW
+                    // USE PROP NAVIGATION MESH
+                    rgba = 0xFFEEEE11;
+                }
+                if ((lo & 0x0F) == 0x0F) {
+                    rgba = 0xFFFF00FF;
+                }
+
+                // # indicates non-zero area
+                switch (hi) {
+                    case 0x01: {
+                        // PURPLE
+                        // + - - - +
+                        // | \ # # |
+                        // |   \ # |
+                        // |     \ |
+                        // + - - - +
+                        rgba = 0xFFFF00FF;
+                        break;
+                    }
+                    case 0x02: {
+                        // CYAN
+                        // + - - - +
+                        // |     / |
+                        // |   / # |
+                        // | / # # |
+                        // + - - - +
+                        rgba = 0xFF00FFFF;
+                        break;
+                    }
+                    case 0x04: {
+                        // ORANGE
+                        // + - - - +
+                        // | \     |
+                        // | # \   |
+                        // | # # \ |
+                        // + - - - +
+                        rgba = 0xFFFFA200;
+                        break;
+                    }
+                    case 0x08: {
+                        // MINT
+                        // + - - - +
+                        // | # # / |
+                        // | # /   |
+                        // | /     |
+                        // + - - - +
+                        rgba = 0xFF00FFAA;
+                        break;
+                    }
+                }
+
+//                rgba |= (Math.min(lo * 32, 255) | (Math.min(hi * 32, 255) << 16) & 0xFF0000);
+            }
+            int x = i % sideLen;
+            int y = sideLen - (i / sideLen) - 1;
             image.setRGB(x, y, rgba);
         }
+
         if (byteBuffer.remaining() != 0) {
             throw new IllegalStateException("Buffer not empty: " + byteBuffer.remaining());
         }
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+//        byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         ByteArrayOutputStream imgOut = new ByteArrayOutputStream();
         ImageIO.write(image, "PNG", imgOut);
         imageData = imgOut.toByteArray();

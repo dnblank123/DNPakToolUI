@@ -27,15 +27,11 @@ package co.phoenixlab.dn.dnptui.viewers.stageini;
 import co.phoenixlab.dds.Dds;
 import co.phoenixlab.dds.DdsImageDecoder;
 import co.phoenixlab.dn.dnptui.DNPTApplication;
-import co.phoenixlab.dn.dnptui.DNPTUIController;
 import co.phoenixlab.dn.dnptui.PakTreeEntry;
 import co.phoenixlab.dn.dnptui.viewers.Viewer;
 import co.phoenixlab.dn.dnptui.viewers.stageini.struct.GridInfo;
 import co.phoenixlab.dn.pak.FileInfo;
-import co.phoenixlab.dn.subfile.stage.eventarea.EventArea;
-import co.phoenixlab.dn.subfile.stage.eventarea.EventAreaGroup;
-import co.phoenixlab.dn.subfile.stage.eventarea.StageEventAreas;
-import co.phoenixlab.dn.subfile.stage.eventarea.StageEventAreasTestReader;
+import co.phoenixlab.dn.subfile.stage.eventarea.*;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableValue;
@@ -248,7 +244,7 @@ public class StageIniEventAreaInfoViewer implements Viewer {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PrintStream printStream = new PrintStream(baos);
-        StageEventAreasTestReader reader = new StageEventAreasTestReader(printStream);
+        StageEventAreasReader reader = new StageEventAreasReader();
         StageEventAreas areas = reader.read(byteBuffer);
         String content = new String(baos.toByteArray(), StandardCharsets.UTF_8);
 
